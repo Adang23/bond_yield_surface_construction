@@ -1,7 +1,8 @@
 import numpy as np
+from .baseInterpolator import BaseInterpolator
 
-
-class ThinPlateSplineInterpolator:
+class ThinPlateSplineInterpolator(BaseInterpolator):
+    """ This is an interpolator for 2-D array only"""
     def __init__(self, lambda_val=0.1):
         """
         Initializes the ThinPlateSplineInterpolator with a regularization parameter.
@@ -12,7 +13,7 @@ class ThinPlateSplineInterpolator:
         self.lambda_val = lambda_val
         self.a = None  # Non-affine coefficients
         self.b = None  # Affine coefficients
-        self.xi = None  # Training points
+        self.X = None  # Training points
         self.N = None  # Matrix for affine part
 
     def compute_green_function(self, xr, xc):
@@ -44,14 +45,14 @@ class ThinPlateSplineInterpolator:
         N = np.hstack((np.ones((points.shape[0], 1)), points))
         return N
 
-    def fit(self, xi, yi):
+    def fit(self, X, Y):
         """
         Fits the interpolator to the given points and values.
         """
-        self.xi = xi
-        y = yi.reshape(-1, 1)
-        M = self.construct_M(xi)
-        N = self.construct_N(xi)
+        self.X = X
+        y = Y.reshape(-1, 1)
+        M = self.construct_M(X)
+        N = self.construct_N(X)
         self.N = N
 
         # Apply regularization
@@ -64,12 +65,12 @@ class ThinPlateSplineInterpolator:
         self.a = a
         self.b = b
 
-    def interpolate(self, x):
+    def interpolate(self, X):
         """
         Interpolates the value at a new point x using the fitted model.
         """
-        x = np.atleast_2d(x)
-        green_values = np.array([self.compute_green_function(x_i, x) for x_i in self.xi])
+        X = np.atleast_2d(X)
+        green_values = np.array([self.compute_green_function(x_i, X) for x_i in self.X])
         non_affine_part = green_values.T @ self.a
         affine_part = self.N @ self.b
         return non_affine_part + affine_part[0]
