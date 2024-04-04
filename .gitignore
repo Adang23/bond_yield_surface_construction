@@ -110,3 +110,4 @@ Thumbs.db
 # data/
 # Exclude specific data files if necessary
 # !example_important_data.csv
+/bond_yield_surface_venv/

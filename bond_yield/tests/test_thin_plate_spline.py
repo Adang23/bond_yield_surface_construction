@@ -1,3 +1,4 @@
+import pytest
 import numpy as np
 from bond_yield.interpolators.thin_plate_spline import ThinPlateSplineInterpolator
 

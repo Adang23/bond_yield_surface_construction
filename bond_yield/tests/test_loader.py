@@ -2,7 +2,7 @@
 
 # tests/test_loader.py
 import pathlib
-from ..data_processing.loader import load_bond_yields
+from bond_yield.data_processing.loader import load_bond_yields
 
 
 def test_load_bond_yields():
