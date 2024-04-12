@@ -20,6 +20,8 @@ class MatrixInterpolator:
         - df_filled: DataFrame, DataFrame with missing values filled, original data retained.
         """
         df.index = df.index.astype(str)
+        df.columns = df.columns.astype(str)
+
         mask = ~df.isna()  # Mask of available (non-NaN) data
 
         # Prepare data for fitting
