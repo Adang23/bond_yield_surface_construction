@@ -12,6 +12,8 @@ bond_yield_surface_construction/
 │   ├── interpolators/
 │   │   ├── __init__.py
 │   │   ├── thin_plate_spline.py
+│   │   ├── lienar.py
+│   │   ├── interpolate_bond_yields.py
 │   │   └── [other interpolators].py
 │   │
 │   ├── data_processing/
