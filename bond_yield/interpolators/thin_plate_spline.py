@@ -49,10 +49,10 @@ class ThinPlateSplineInterpolator(BaseInterpolator):
         """
         Fits the interpolator to the given points and values.
         """
-        self.X = X
-        y = Y.reshape(-1, 1)
-        M = self.construct_M(X)
-        N = self.construct_N(X)
+        self.X = X.astype(float)
+        y = Y.astype(float).reshape(-1, 1)
+        M = self.construct_M(self.X)
+        N = self.construct_N(self.X)
         self.N = N
 
         # Apply regularization
@@ -69,7 +69,7 @@ class ThinPlateSplineInterpolator(BaseInterpolator):
         """
         Interpolates the value at a new point x using the fitted model.
         """
-        X = np.atleast_2d(X)
+        X = np.atleast_2d(X).astype(float)
         green_values = np.array([self.compute_green_function(x_i, X) for x_i in self.X])
         non_affine_part = green_values.T @ self.a
         affine_part = self.N @ self.b

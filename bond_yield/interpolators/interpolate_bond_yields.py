@@ -11,41 +11,35 @@ class MatrixInterpolator:
 
     def fit_interpolate(self, df):
         """
-        Fit the interpolator to available data and interpolate missing values.
+        Fit the interpolator to available data and interpolate missing values only.
 
         Parameters:
         - df: DataFrame, DataFrame where index is rating and columns are tenors.
 
         Returns:
-        - df_filled: DataFrame, DataFrame with missing values filled.
+        - df_filled: DataFrame, DataFrame with missing values filled, original data retained.
         """
-        # Mask to identify non-NaN entries (available data)
-        df = df.apply(pd.to_numeric, errors='coerce')
-        mask = ~df.isna()
+        df.index = df.index.astype(str)
+        mask = ~df.isna()  # Mask of available (non-NaN) data
 
         # Prepare data for fitting
         X_train = np.array([(i, j) for i in df.index for j in df.columns if mask.at[i, j]])
         y_train = np.array([df.at[i, j] for i in df.index for j in df.columns if mask.at[i, j]])
 
-        X_train = np.array(X_train, dtype=float)
-        y_train = np.array(y_train, dtype=float)
-
-        # Fit the interpolator
+        # Fit the interpolator to the available data
         self.interpolator.fit(X_train, y_train)
 
-        # Prepare to predict the entire matrix
-        X_pred = np.array([(i, j) for i in df.index for j in df.columns])
-        X_pred = np.array(X_pred, dtype=float)
+        # Prepare to predict only the missing values
+        X_pred = np.array([(i, j) for i in df.index for j in df.columns if not mask.at[i, j]])
 
-        # Predict using the interpolator
-        predictions = self.interpolator.interpolate(X_pred)
+        if len(X_pred) > 0:  # Check if there are any missing values to predict
+            predictions = self.interpolator.interpolate(X_pred)
 
-        # Reshape predictions back to DataFrame format
-        df_filled = pd.DataFrame(predictions.reshape(df.shape), index=df.index, columns=df.columns)
+            # Fill only the missing values in the DataFrame
+            for (i, j), pred in zip(X_pred, predictions):
+                df.at[i, j] = pred
 
-        return df_filled
-
-
+        return df
 
 if __name__ == "__main__":
     # Load the DataFrame
@@ -53,7 +47,7 @@ if __name__ == "__main__":
     df = pd.read_csv(csv_url, index_col=0)
 
     # Initialize interpolator (example using a dummy subclass of BaseInterpolator)
-    interpolator = ThinPlateSplineInterpolator()  # You should replace this with your actual interpolator class
+    interpolator = ThinPlateSplineInterpolator()  # Replace with your actual interpolator class
 
     # Initialize matrix interpolator
     matrix_interpolator = MatrixInterpolator(interpolator)
