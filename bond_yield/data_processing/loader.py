@@ -9,33 +9,23 @@ def load_rating_scores(yaml_path):
     return rating_scores
 
 
-def load_bond_yields_single_dataframe(csv_path, yaml_path):
+def load_bond_yields_single_dataframe(csv_path):
     """
-    Load bond yields into a single DataFrame with ratings as index and tenors (in days) as columns.
+    Load bond yields into a single DataFrame with the first column as the index (ratings)
+    and the remaining columns as tenors (in days).
 
     Parameters:
     - csv_path: str, Path to the CSV file containing bond yields.
-    - yaml_path: str, Path to the YAML file containing rating scores.
 
     Returns:
-    - pd.DataFrame: DataFrame where the index is ratings and columns are tenors in days.
+    - pd.DataFrame: DataFrame where the index is ratings from the first column and columns
+                    are tenors in days.
     """
-    # Load rating scores to map ratings to their numeric values
-    rating_scores = load_rating_scores(yaml_path)
-
-    # Read the bond yields CSV file
-    df = pd.read_csv(csv_path)
-
-    # Assume the first column contains rating categories, which we'll map to their scores
-    # and set as the DataFrame's index
-    df['Rating'] = df.iloc[:, 0].apply(lambda rating: rating_scores.get(rating, 0))
-    df.set_index('Rating', inplace=True)
-
-    # Drop the first column if it's still present after setting the index
-    if df.columns[0] == df.index.name:
-        df = df.iloc[:, 1:]
+    # Read the bond yields CSV file, assuming the first column is the index (ratings)
+    df = pd.read_csv(csv_path, index_col=0)
 
     return df
+
 
 def load_bond_yields(csv_path, yaml_path):
     rating_scores = load_rating_scores(yaml_path)
