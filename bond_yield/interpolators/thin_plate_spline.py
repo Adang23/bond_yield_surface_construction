@@ -11,9 +11,9 @@ class ThinPlateSplineInterpolator(BaseInterpolator):
         - lambda_val: Regularization parameter for smoothing.
         """
         self.lambda_val = lambda_val
-        self.a = None  # Non-affine coefficients
+        self.w = None  # Non-affine coefficients
         self.b = None  # Affine coefficients
-        self.X = None  # Training points
+        self.X_training = None  # Training points
         self.N = None  # Matrix for affine part
 
     def compute_green_function(self, xr, xc):
@@ -22,7 +22,8 @@ class ThinPlateSplineInterpolator(BaseInterpolator):
         """
         r = np.linalg.norm(xr - xc, axis=1)
         # Avoid log(0) by adding a small value
-        return 1 / np.pi * r ** 2 * np.log(r + 1e-10)
+        #return 1 / np.pi * r ** 2 * np.log(r + 1e-10)
+        return  r ** 2 * np.log(r + 1e-10)
 
     def construct_M(self, points):
         """
@@ -32,10 +33,7 @@ class ThinPlateSplineInterpolator(BaseInterpolator):
         M = np.zeros((n, n))
         for i in range(n):
             for j in range(n):
-                if i == j:
-                    M[i, j] = 0
-                else:
-                    M[i, j] = self.compute_green_function(points[i, np.newaxis], points[j, np.newaxis])
+                M[i, j] = self.compute_green_function(points[i, np.newaxis], points[j, np.newaxis])
         return M
 
     def construct_N(self, points):
@@ -49,10 +47,10 @@ class ThinPlateSplineInterpolator(BaseInterpolator):
         """
         Fits the interpolator to the given points and values.
         """
-        self.X = X.astype(float)
+        self.X_training = X.astype(float)
         y = Y.astype(float).reshape(-1, 1)
-        M = self.construct_M(self.X)
-        N = self.construct_N(self.X)
+        M = self.construct_M(self.X_training)
+        N = self.construct_N(self.X_training)
         self.N = N
 
         # Apply regularization
@@ -62,7 +60,7 @@ class ThinPlateSplineInterpolator(BaseInterpolator):
         b = np.linalg.inv(N.T @ np.linalg.inv(M_lambda_I) @ N) @ N.T @ np.linalg.inv(M_lambda_I) @ y
         a = np.linalg.inv(M_lambda_I) @ (y - N @ b)
 
-        self.a = a
+        self.w = a
         self.b = b
 
     def interpolate(self, X):
@@ -70,8 +68,9 @@ class ThinPlateSplineInterpolator(BaseInterpolator):
         Interpolates the value at a new point x using the fitted model.
         """
         X = np.atleast_2d(X).astype(float)
-        green_values = np.array([self.compute_green_function(x_i, X) for x_i in self.X])
-        non_affine_part = green_values.T @ self.a
-        affine_part = self.N @ self.b
+        green_values = np.array([self.compute_green_function(x_i, X) for x_i in self.X_training])
+        non_affine_part = green_values.T @ self.w
+        extended_X = np.hstack((np.ones((X.shape[0], 1)),X))
+        affine_part = extended_X @ self.b
         return non_affine_part + affine_part[0]
 
