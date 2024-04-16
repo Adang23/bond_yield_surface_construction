@@ -58,9 +58,9 @@ class ThinPlateSplineInterpolator(BaseInterpolator):
 
         # Solve for b and then for a
         b = np.linalg.inv(N.T @ np.linalg.inv(M_lambda_I) @ N) @ N.T @ np.linalg.inv(M_lambda_I) @ y
-        a = np.linalg.inv(M_lambda_I) @ (y - N @ b)
+        w = np.linalg.inv(M_lambda_I) @ (y - N @ b)
 
-        self.w = a
+        self.w = w
         self.b = b
 
     def interpolate(self, X):
