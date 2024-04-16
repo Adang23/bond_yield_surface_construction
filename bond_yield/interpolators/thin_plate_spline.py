@@ -68,9 +68,9 @@ class ThinPlateSplineInterpolator(BaseInterpolator):
         Interpolates the value at a new point x using the fitted model.
         """
         X = np.atleast_2d(X).astype(float)
-        green_values = np.array([self.compute_green_function(x_i, X) for x_i in self.X_training])
-        non_affine_part = green_values.T @ self.w
+        green_values = np.array([self.compute_green_function(x_i, self.X_training) for x_i in X])
+        non_affine_part = green_values @ self.w
         extended_X = np.hstack((np.ones((X.shape[0], 1)),X))
         affine_part = extended_X @ self.b
-        return non_affine_part + affine_part[0]
+        return non_affine_part + affine_part
 
