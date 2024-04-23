@@ -72,3 +72,12 @@ class SlopeMinimizingRatingConverter(BaseRatingConverter):
             self.ratings = dict(zip(rating_labels, optimized_values))
         else:
             print("Optimization failed:", result.message)
+
+    def get_rating_scale(self):
+        """
+        Retrieve the current rating scales after optimization.
+
+        Returns:
+        dict: A dictionary mapping rating labels to their optimized numerical values.
+        """
+        return self.ratings
