@@ -18,6 +18,13 @@ class BaseRatingConverter(ABC):
         """
         pass
 
+    def get_rating_scale(self):
+        """
+
+        :return: the rating scales in dict format
+        """
+
+
 class SimpleRatingConverter(BaseRatingConverter):
     def __init__(self, rating_map=None, yaml_path=None):
         """
@@ -53,6 +60,15 @@ class SimpleRatingConverter(BaseRatingConverter):
         else:
             raise ValueError(f"Rating '{rating}' not found in the rating map.")
 
+def get_rating_scale(self):
+    """
+    Retrieve the rating scale mapping used by the converter.
+
+    Returns:
+    dict: A dictionary mapping rating labels to numerical values.
+    """
+    return self.rating_map
+
 class YieldBasedRatingConverter(BaseRatingConverter):
     def __init__(self, bond_yield_df):
         """
@@ -62,7 +78,9 @@ class YieldBasedRatingConverter(BaseRatingConverter):
         - bond_yield_df (pd.DataFrame): DataFrame indexed by ratings with columns as tenors,
                                         values are yields.
         """
+        super().__init__()
         self.bond_yield_df = bond_yield_df
+        self.rating_scale = self.calculate_rating_scales()
 
     def convert(self, rating):
         """
@@ -74,9 +92,22 @@ class YieldBasedRatingConverter(BaseRatingConverter):
         Returns:
         - float: The average yield for the given rating, or 0 if the rating is not found.
         """
-        if rating in self.bond_yield_df.index:
-            # Calculate the average yield for the given rating
-            average_yield = self.bond_yield_df.loc[rating].mean()
-            return average_yield
-        else:
-            return 0  # Return 0 or perhaps NaN if the rating is not found
+        return self.rating_scale.get(rating, 0)
+
+    def calculate_rating_scales(self):
+        """
+        Calculates the average yields for each rating across all tenors.
+
+        Returns:
+        dict: A dictionary mapping each rating to its average yield.
+        """
+        return self.bond_yield_df.mean(axis=1).to_dict()
+
+    def get_rating_scale(self):
+        """
+        Retrieve the rating scale mapping used by the converter.
+
+        Returns:
+        dict: A dictionary mapping rating labels to average yields.
+        """
+        return self.rating_scale
