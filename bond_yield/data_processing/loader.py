@@ -1,13 +1,5 @@
 import pandas as pd
-import yaml
 from pathlib import Path
-
-
-def load_rating_scores(yaml_path):
-    with open(yaml_path, 'r') as file:
-        rating_scores = yaml.safe_load(file)['ratings']
-    return rating_scores
-
 
 def load_bond_yields_single_dataframe(csv_path):
     """
@@ -27,8 +19,7 @@ def load_bond_yields_single_dataframe(csv_path):
     return df
 
 
-def load_bond_yields(csv_path, yaml_path):
-    rating_scores = load_rating_scores(yaml_path)
+def load_bond_yields(csv_path):
     df = pd.read_csv(csv_path, index_col=0)  # Assuming first column is the date
 
     date_dataframes = {}
@@ -36,10 +27,9 @@ def load_bond_yields(csv_path, yaml_path):
         data_for_date = []
         for col in df.columns:
             rating, tenor = col.split("::")
-            numeric_rating = rating_scores.get(rating, 0)  # Fallback to 0 if rating not found
             tenor_days = int(tenor)
             yield_value = df.at[date, col]
-            data_for_date.append((numeric_rating, tenor_days, yield_value))
+            data_for_date.append((rating, tenor_days, yield_value))
 
         # Create a DataFrame for the current date
         date_df = pd.DataFrame(data_for_date, columns=['Rating', 'Tenor', 'Yield'])
@@ -53,9 +43,8 @@ def load_bond_yields(csv_path, yaml_path):
 
 if __name__ == "__main__":
     csv_file_path = Path('../tests/sample_historical_bond_yields.csv').resolve()
-    yaml_file_path = Path('../tests/rating_scores.yaml').resolve()
 
-    bond_yields = load_bond_yields(csv_file_path, yaml_file_path)
+    bond_yields = load_bond_yields(csv_file_path)
     # Print or process loaded DataFrames as needed, for example:
     for date, df in bond_yields.items():
         print(f"Date: {date}\nDataFrame:\n{df}\n")
