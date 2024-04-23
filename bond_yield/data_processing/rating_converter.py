@@ -107,6 +107,7 @@ class YieldBasedRatingConverter(BaseRatingConverter):
         """
         Retrieve the rating scale mapping used by the converter.
 
+
         Returns:
         dict: A dictionary mapping rating labels to average yields.
         """
