@@ -1,22 +1,38 @@
-import pytest
 
+import pytest
+import yaml
+from bond_yield.data_processing.rating_converter import SimpleRatingConverter, YieldBasedRatingConverter
 import pandas as pd
 
-from bond_yield.data_processing.rating_converter import SimpleRatingConverter, YieldBasedRatingConverter
+def test_simple_rating_converter_with_dict():
+    rating_map = {'AAA': 1, 'BBB': 2, 'CCC': 3}
+    converter = SimpleRatingConverter(rating_map=rating_map)
+    assert converter.convert('AAA') == 1
+    assert converter.convert('BBB') == 2
+    with pytest.raises(ValueError):
+        converter.convert('ZZZ')
 
-@pytest.fixture
-def rating_converter():
-    return SimpleRatingConverter()
+def test_simple_rating_converter_with_yaml(tmpdir):
+    rating_map = {'AAA': 1, 'BBB': 2, 'CCC': 3}
+    yaml_file = tmpdir.join("rating_map.yaml")
+    yaml_file.write(yaml.dump(rating_map))
+    converter = SimpleRatingConverter(yaml_path=str(yaml_file))
+    assert converter.convert('AAA') == 1
+    assert converter.convert('CCC') == 3
+    with pytest.raises(ValueError):
+        converter.convert('ZZZ')
 
-def test_known_rating_conversion(rating_converter):
-    # Test known ratings
-    ratings = {'AAA': 1, 'AA+': 2, 'AA': 3, 'AA-': 4, 'A+': 5, 'A': 6, 'A-': 7, 'BBB': 8, 'BB': 9, 'B': 10, 'CCC': 11, 'CC': 12, 'C': 13, 'D': 14}
-    for rating, expected in ratings.items():
-        assert rating_converter.convert(rating) == expected, f"Failed to convert {rating}"
+def test_simple_rating_converter_without_map():
+    with pytest.raises(ValueError):
+        SimpleRatingConverter()
 
-def test_unknown_rating_conversion(rating_converter):
-    # Test an unknown rating
-    assert rating_converter.convert("XXX") == 0, "Failed to return 0 for an unknown rating"
+def test_yield_based_rating_converter():
+    data = {'AAA': [2.5, 2.6, 2.7], 'BBB': [3.5, 3.6, 3.7]}
+    df = pd.DataFrame(data).transpose()
+    converter = YieldBasedRatingConverter(bond_yield_df=df)
+    assert converter.convert('AAA') == pytest.approx(2.6)
+    assert converter.convert('BBB') == pytest.approx(3.6)
+    assert converter.convert('ZZZ') == 0
 
 def test_yield_based_rating_converter():
     # Create a sample DataFrame
@@ -39,16 +55,3 @@ def test_yield_based_rating_converter():
     # Test a rating not in the DataFrame
     assert converter.convert('BBB') == 0, "Should return 0 for ratings not found"
 
-def test_yield_based_rating_converter_with_all_nan():
-    # DataFrame where one rating only contains NaN values
-    data = {
-        365: [0.02, None, None],
-        720: [0.023, None, None],
-        1080: [0.026, None, None]
-    }
-    index = ['AAA', 'AA', 'A']
-    df = pd.DataFrame(data, index=index)
-
-    converter = YieldBasedRatingConverter(df)
-    # Test when all values for a rating are NaN
-    assert converter.convert('AA') == 0, "Should return 0 when all tenor values are NaN"

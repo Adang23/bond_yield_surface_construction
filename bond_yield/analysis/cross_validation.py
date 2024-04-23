@@ -1,66 +1,75 @@
+
+from bond_yield.interpolators.baseInterpolator import BaseInterpolator
+
 import numpy as np
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error
-from bond_yield.data_processing.loader import load_bond_yields
-from bond_yield.interpolators.thin_plate_spline import ThinPlateSplineInterpolator
-from bond_yield.interpolators.baseInterpolator import BaseInterpolator
 
 
-# Function to calculate RMSE
-def calculate_rmse(actual, predicted):
-    return np.sqrt(mean_squared_error(actual, predicted))
-
-
-def perform_cross_validation(interpolator_class, csv_path, yaml_path, n_splits=5, random_state=42):
+def cross_validate_single_dataframe(df, interpolator_class, n_splits=5, random_state=42):
     """
-    Perform k-fold cross-validation on a given interpolator, adapted for data structure from loader.py.
+    Conduct k-fold cross-validation on a single DataFrame.
+
+    Parameters:
+    - df: DataFrame to perform cross-validation on.
+    - interpolator_class: Class inheriting from BaseInterpolator.
+    - n_splits: Number of folds for k-fold cross-validation.
+    - random_state: Seed for reproducible random splits.
+
+    Returns:
+    - tuple: (Mean squared error from cross-validation, number of samples).
+    """
+    kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+
+    mse_metrics = []
+
+    X, y = [], []
+    for tenor in df.columns:
+        for rating in df.index:
+            X.append([rating, tenor])
+            y.append(df.loc[rating, tenor])
+    X = np.array(X)
+    y = np.array(y)
+
+    for train_index, test_index in kf.split(X):
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+
+        interpolator = interpolator_class()
+        interpolator.fit(X_train, y_train)
+        y_pred = interpolator.interpolate(X_test)
+        mse = mean_squared_error(y_test, y_pred)
+        mse_metrics.append(mse)
+
+    return np.mean(mse_metrics), len(y)
+
+
+def perform_cross_validation(interpolator_class, date_dataframes, n_splits=5, random_state=42):
+    """
+    Perform k-fold cross-validation across multiple DataFrames, computing a weighted average MSE.
 
     Parameters:
     - interpolator_class: Class inheriting from BaseInterpolator.
-    - csv_path: Path to CSV file containing bond yields.
-    - yaml_path: Path to YAML file containing rating scores.
+    - date_dataframes: Dictionary of date keys and DataFrame values for cross-validation.
     - n_splits: Number of folds for k-fold cross-validation.
     - random_state: Seed for reproducible random splits.
+
+    Returns:
+    - float: Weighted mean squared error averaged over all dates.
     """
-    assert issubclass(interpolator_class, BaseInterpolator), "Interpolator must inherit from BaseInterpolator"
+    total_mse = 0
+    total_samples = 0
 
-    date_dataframes = load_bond_yields(csv_path, yaml_path)
-    kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
-
-    aggregated_rmse_metrics = []
-
-    # Iterate through each date's DataFrame in the dictionary
     for date, df in date_dataframes.items():
-        # Flatten DataFrame to a suitable format (Rating, Tenor) -> Yield
-        X, y = [], []
-        for tenor in df.columns:
-            for rating in df.index:
-                X.append([rating, tenor])
-                y.append(df.loc[rating, tenor])
-        X = np.array(X)
-        y = np.array(y)
+        mse, samples = cross_validate_single_dataframe(df, interpolator_class, n_splits, random_state)
+        total_mse += mse * samples
+        total_samples += samples
 
-        date_rmse_metrics = []
-
-        for train_index, test_index in kf.split(X):
-            X_train, X_test = X[train_index], X[test_index]
-            y_train, y_test = y[train_index], y[test_index]
-
-            interpolator = interpolator_class()
-            interpolator.fit(X_train, y_train)
-
-            y_pred = interpolator.interpolate(X_test)
-            rmse = calculate_rmse(y_test, y_pred)
-            date_rmse_metrics.append(rmse)
-
-        aggregated_rmse_metrics.append(np.mean(date_rmse_metrics))
-
-    overall_rmse = np.mean(aggregated_rmse_metrics)
-    print(f"Overall Cross-Validation RMSE: {overall_rmse:.4f}")
+    if total_samples > 0:
+        weighted_mse = total_mse / total_samples
+        print(f"Overall Weighted Cross-Validation MSE: {weighted_mse:.4f}")
+        return weighted_mse
+    else:
+        raise ValueError("No data available for cross-validation.")
 
 
-# Example usage, assuming the correct paths are provided
-if __name__ == "__main__":
-    csv_file_path = './sample_historical_bond_yields.csv'
-    yaml_file_path = './rating_scores.yaml'
-    perform_cross_validation(ThinPlateSplineInterpolator, csv_file_path, yaml_file_path)

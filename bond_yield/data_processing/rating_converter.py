@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import yaml
 
 class BaseRatingConverter(ABC):
     def __init__(self):
@@ -18,27 +19,39 @@ class BaseRatingConverter(ABC):
         pass
 
 class SimpleRatingConverter(BaseRatingConverter):
-    def __init__(self):
+    def __init__(self, rating_map=None, yaml_path=None):
+        """
+        Initialize the converter with a rating map provided either as a dictionary or loaded from a YAML file.
+
+        Parameters:
+        - rating_map (dict, optional): A dictionary mapping rating labels to numerical values.
+        - yaml_path (str, optional): Path to a YAML file containing the rating mappings.
+        """
         super().__init__()
-        self.rating_map = {
-            'AAA': 1,
-            'AA+': 2,
-            'AA': 3,
-            'AA-': 4,
-            'A+': 5,
-            'A': 6,
-            'A-': 7,
-            'BBB': 8,
-            'BB': 9,
-            'B': 10,
-            'CCC': 11,
-            'CC': 12,
-            'C': 13,
-            'D': 14
-        }
+        if yaml_path:
+            # Load the rating map from a YAML file
+            with open(yaml_path, 'r') as file:
+                self.rating_map = yaml.safe_load(file)
+        elif rating_map:
+            # Use the provided dictionary
+            self.rating_map = rating_map
+        else:
+            raise ValueError("A rating map must be provided either as a dictionary or a YAML file path.")
 
     def convert(self, rating):
-        return self.rating_map.get(rating, 0)  # Returns 0 if the rating is not found
+        """
+        Convert a rating to its numerical value using the rating map.
+
+        Parameters:
+        - rating (str): The rating to convert.
+
+        Returns:
+        - int or float: The numerical value of the rating, or raises an error if not found.
+        """
+        if rating in self.rating_map:
+            return self.rating_map[rating]
+        else:
+            raise ValueError(f"Rating '{rating}' not found in the rating map.")
 
 class YieldBasedRatingConverter(BaseRatingConverter):
     def __init__(self, bond_yield_df):
