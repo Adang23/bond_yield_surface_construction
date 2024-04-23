@@ -61,7 +61,7 @@ class SlopeMinimizingRatingConverter(BaseRatingConverter):
 
         options = {'method': 'SLSQP'}
         if bounds:
-            options['bounds'] = Bounds(*zip(*bounds))
+            options['bounds'] = bounds
         if constraints:
             options['constraints'] = constraints
 
