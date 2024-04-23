@@ -1,48 +1,19 @@
 import numpy as np
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error
-from bond_yield.interpolators.baseInterpolator import BaseInterpolator
 
-
-class CrossValidator:
-    def __init__(self, interpolator_class, date_dataframes, rating_converter_cls=None, tenor_converter_cls=None,
-                 n_splits=5, random_state=42):
-        """
-        Initialize the cross-validation class with necessary components and configurations.
-
-        Parameters:
-        - interpolator_class (class): A class inheriting from BaseInterpolator.
-        - date_dataframes (dict): Dictionary with dates as keys and bond yield DataFrames as values.
-        - rating_converter_cls (class, optional): Class for converting ratings, may require DataFrame initialization.
-        - tenor_converter_cls (class, optional): Class for converting tenors, may require DataFrame initialization.
-        - n_splits (int): Number of folds for k-fold cross-validation.
-        - random_state (int): Seed for reproducible random splits.
-        """
+class BaseCrossValidator:
+    def __init__(self, interpolator_class, date_dataframes, n_splits=5, random_state=42):
         self.interpolator_class = interpolator_class
         self.date_dataframes = date_dataframes
-        self.rating_converter_cls = rating_converter_cls
-        self.tenor_converter_cls = tenor_converter_cls
         self.n_splits = n_splits
         self.random_state = random_state
 
+    def prepare_dataframes(self):
+        # Default implementation does nothing.
+        pass
+
     def cross_validate_single_dataframe(self, df):
-        """
-        Conduct k-fold cross-validation on a single DataFrame.
-
-        Parameters:
-        - df (DataFrame): DataFrame to perform cross-validation on.
-
-        Returns:
-        - tuple: (Mean squared error from cross-validation, number of samples).
-        """
-        if self.rating_converter_cls:
-            rating_converter = self.rating_converter_cls(df)  # Assume the converter initializes with the df if needed
-            df.index = df.index.map(rating_converter.get_rating_scale)
-
-        if self.tenor_converter_cls:
-            tenor_converter = self.tenor_converter_cls(df)  # Assume the converter initializes with the df if needed
-            df.columns = df.columns.map(tenor_converter.get_tenor_scale)
-
         kf = KFold(n_splits=self.n_splits, shuffle=True, random_state=self.random_state)
         mse_metrics = []
 
@@ -67,12 +38,8 @@ class CrossValidator:
         return np.mean(mse_metrics), len(y)
 
     def perform_cross_validation(self):
-        """
-        Perform k-fold cross-validation across multiple DataFrames, computing a weighted average MSE.
+        self.prepare_dataframes()
 
-        Returns:
-        - float: Weighted mean squared error averaged over all dates.
-        """
         total_mse = 0
         total_samples = 0
 
@@ -87,3 +54,21 @@ class CrossValidator:
             return weighted_mse
         else:
             raise ValueError("No data available for cross-validation.")
+
+class CrossValidator(BaseCrossValidator):
+    def prepare_dataframes(self):
+        # Implement specific logic if necessary.
+        pass
+
+class CrossValidatorBySlope(BaseCrossValidator):
+    def __init__(self, interpolator_class, date_dataframes, rating_converter, n_splits=5, random_state=42):
+        super().__init__(interpolator_class, date_dataframes, n_splits, random_state)
+        self.rating_converter = rating_converter
+
+    def prepare_dataframes(self):
+        for date, df in self.date_dataframes.items():
+            self.rating_converter.strategy.bond_yield_df = df
+            self.rating_converter.optimize_ratings()
+            scale = self.rating_converter.get_rating_scale()
+            df.index = df.index.map(lambda x: scale.get(x, 0))
+
